@@ -256,6 +256,7 @@ app.delete("/products/delete/:id", async (req, res )=>{
 const clientSchema = new mongoose.Schema({
          
     clientName:{ type:String, required:true },
+    DOB:{ type:String, required:true },
     number: { type: String, required: true },
     email: { type: String, required: true },
     password: { type: String, required: true },
@@ -268,25 +269,36 @@ const clientSchema = new mongoose.Schema({
 // Client Model  
 
 const Client = mongoose.model("Client", clientSchema);
-
+// Client Image Storage
+const clientStorage = multer.diskStorage({
+    destination:(req,file,cb)=>{
+        cb(null,'uploads/clients/');// client ki image storage karne k liye 
+    },
+    filename:(req,file,cb)=>{
+        cb(null,Date.now()+ '-' + file.originalname);
+    }
+});
+const clientUpload = multer({ storage: clientStorage});
 // Api of client data save 
 
-app.post("/clients/post", async(req, res) =>{
+app.post("/clients/post", upload.single("clientImage"), async(req, res) =>{
     
-    const {clientname, email, number, qualification, status, password,} =req.body;
+    const {clientName, email, number, qualification, status, password, DOB,} =req.body;
     const clientImage = req.file ? `http://localhost:3000/uploads/${req.file.filename}` : "";
+
     try {
-        if(!clientname || !email || !number || !qualification || !status || password || clientImage) {
+        if(!clientName || !email || !number || !qualification || !status || !password || !clientImage || !DOB) {
             return res.status(400).json({message: 'All fields are required'});
         }
         const newClient = new Client({
-            clientname,
+            clientName,
             email,
             number,
             qualification,
             status,
             password,
-            clientImage,
+            clientImage:clientImage,
+            DOB,
         });
         await newClient.save();
         console.log("Client save successfully:", newClient);   // Debugging k liye
@@ -302,7 +314,7 @@ app.post("/clients/post", async(req, res) =>{
 // Clients Get Api 
 
 
-app.get("/client/get", async(req, res) =>{
+app.get("/clients/get", async(req, res) =>{
     try {
         const client = await Client.find();
         console.log("Fetched clients from DB:", client);   // Debugging k liye
@@ -315,7 +327,7 @@ app.get("/client/get", async(req, res) =>{
    
 // Api of client data edit
 
-app.put("client/edit/:id", async(req, res) =>{
+app.put("/clients/edit/:id", async(req, res) =>{
     const {id}= req.params;
     if(!mongoose.Types.ObjectId.isValid(id)){
         return res.status(400).json({message:"Invailid Client Id "});
@@ -337,7 +349,7 @@ app.put("client/edit/:id", async(req, res) =>{
 // Api of Client data delete
 
 
-app.delete("/client/delete/:id", async (req,res) =>{
+app.delete("/clients/delete/:id", async (req,res) =>{
     try {
         const {id} = req.params;
         console.log("Delete request ID:", id);   // Debugging k liye
@@ -353,7 +365,7 @@ app.delete("/client/delete/:id", async (req,res) =>{
         console.error("Error deleting Client:", err);  // Debugging k liye
         res.status(500).json({message:"Error Deleting Client", err});
     }
-})
+});
 
 
 const PORT = 3000;
