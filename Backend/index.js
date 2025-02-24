@@ -4,6 +4,7 @@ const cors = require('cors');
 const multer = require("multer");
 const path = require("path");
 const fs = require('fs');
+const { error } = require('console');
 
 const app = express();
 app.use(cors());
@@ -208,13 +209,14 @@ app.get("/products/get", async (req, res) => {
 
 // Product Edit ki Api
 
-app.put("/products/edit/:id", async (req, res )=>{
+app.put("/products/edit/:id", upload.single("productImage"), async (req, res )=>{
     const{id}= req.params;
+    // Check if the id is vailid
     if(!mongoose.Types.ObjectId.isValid(id)){
         return res.status(400).json({message: 'Invailied Product Id'})
     }
     try {
-        const product= await productModel.findByIdAndUpdate(id, req.body, {new: true, runValidators: true});
+        const product= await Product.findByIdAndUpdate(id, req.body, {new: true});
         if(!product){
             
             return res.status(404).json ({message: 'Product note found'});
@@ -232,17 +234,129 @@ app.delete("/products/delete/:id", async (req, res )=>{
    
     try {
         const {id} = req.params;
-        const product =await productModel.findByIdAndDelete(id);
+        console.log("Delete Request ID:", id); // Debugging ke liye
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({ message: "Invalid product ID" });
+          }
+        const product = await Product.findByIdAndDelete(id);
         if(!product){
             return res.status(404).json({message: 'Product not found'});
         }
         res.status(200).json({message: 'Product Deleted Successfully'});
     } catch (err) {
-        res.status(400).json({message: 'Error Deleting Product', error: err.message});
+        console.error("Error deleting product:", err); // Debugging ke liye
+        res.status(500).json({message: 'Error Deleting Product', error: err.message});
     }
 });
 
+
+// ******** Client ka Schema *********
+
+
+const clientSchema = new mongoose.Schema({
+         
+    clientName:{ type:String, required:true },
+    number: { type: String, required: true },
+    email: { type: String, required: true },
+    password: { type: String, required: true },
+    status: { type: String, required: true },
+    qualification: { type: String, required: true },
+    clientImage: { type: String, required: true },
+
+});
+
+// Client Model  
+
+const Client = mongoose.model("Client", clientSchema);
+
+// Api of client data save 
+
+app.post("/clients/post", async(req, res) =>{
+    
+    const {clientname, email, number, qualification, status, password,} =req.body;
+    const clientImage = req.file ? `http://localhost:3000/uploads/${req.file.filename}` : "";
+    try {
+        if(!clientname || !email || !number || !qualification || !status || password || clientImage) {
+            return res.status(400).json({message: 'All fields are required'});
+        }
+        const newClient = new Client({
+            clientname,
+            email,
+            number,
+            qualification,
+            status,
+            password,
+            clientImage,
+        });
+        await newClient.save();
+        console.log("Client save successfully:", newClient);   // Debugging k liye
+        res.status(201).json({message:"Client saved successfully"});
+    } catch (err) {
+        console.error("Error saving Client", err);   // Debugging k liye
+        res.status(500).json({message:"Error saving product", error: err.message });
+        
+    }
+    
+});
+
+// Clients Get Api 
+
+
+app.get("/client/get", async(req, res) =>{
+    try {
+        const client = await Client.find();
+        console.log("Fetched clients from DB:", client);   // Debugging k liye
+        res.status(200).json({message:"Clients fetched successfully", client});
+        
+    } catch (err) {
+        res.status(500).json({message:"Error fetching product", error: err.message});
+    }
+});
+   
+// Api of client data edit
+
+app.put("client/edit/:id", async(req, res) =>{
+    const {id}= req.params;
+    if(!mongoose.Types.ObjectId.isValid(id)){
+        return res.status(400).json({message:"Invailid Client Id "});
+        
+    }
+    try {
+        const client = await Client.findByIdAndUpdate(id, req.body, {new: true});
+        if(!client){
+            return res.status(404).json ({message:"Client note found"});
+        }
+        res.status(200).json ({message:"client Updated successfully", client});
+    } catch (error) {
+        res.status(400).json({message:"Error Updating Product", error: err.message});
+        
+    }
+});
+
+
+// Api of Client data delete
+
+
+app.delete("/client/delete/:id", async (req,res) =>{
+    try {
+        const {id} = req.params;
+        console.log("Delete request ID:", id);   // Debugging k liye
+        if(!mongoose.Types.ObjectId.isValid(id)){
+            return res.status(400).json({message:"Invailied client ID"});   
+        }
+        const client = await Client.findByIdAndDelete(id);
+        if(!client){
+            return res.status(404).json({message:"Product not found"});
+        }
+        res.status(200).json({message:"Client Deleted successfully"});
+    } catch (err) {
+        console.error("Error deleting Client:", err);  // Debugging k liye
+        res.status(500).json({message:"Error Deleting Client", err});
+    }
+})
+
+
 const PORT = 3000;
 app.listen(PORT, () => {
-    console.log(`App is running on http://localhost:${PORT}`);
+    console.log(`App is running on https://localhost:${PORT}`);
 });
